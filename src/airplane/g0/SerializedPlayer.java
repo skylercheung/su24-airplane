@@ -46,7 +46,7 @@ public class SerializedPlayer extends Player {
 		int minIndex = 10000;
 		for (int i = 0; i < planes.size(); i++) {
 			Plane p = planes.get(i);
-		    if (p.getDepartureTime() < minTime && p.getBearing() == -1 && p.dependenciesHaveLanded(bearings)) {
+		    if (p.getDepartureTime() < minTime && p.getBearing() == -1) {
 				minIndex = i;
 				minTime = p.getDepartureTime();
 		    }
