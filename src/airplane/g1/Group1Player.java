@@ -1,6 +1,5 @@
 package airplane.g1;
 
-import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import org.apache.log4j.Logger;
 import airplane.sim.Plane;
@@ -9,9 +8,8 @@ import airplane.sim.Player;
 public class Group1Player extends Player {
 
     private Logger logger = Logger.getLogger(this.getClass());
-
     private boolean pass = false;
-    private double preDist = Double.MAX_VALUE;;
+    private double preDist = Double.MAX_VALUE;
 
     @Override
     public String getName() {
@@ -21,6 +19,8 @@ public class Group1Player extends Player {
     @Override
     public void startNewGame(ArrayList<Plane> planes) {
         logger.info("Starting new game!");
+        pass = false;
+        preDist = Double.MAX_VALUE;
     }
 
     @Override
@@ -35,6 +35,7 @@ public class Group1Player extends Player {
         double bearing1 = 0;
         double bearing2 = 0;
 
+
         // Check if the plane is in the air
         if (round >= departureTime1) {
             bearing1 = calculateBearing(p1.getLocation(), p1.getDestination());
@@ -42,6 +43,7 @@ public class Group1Player extends Player {
         if (round >= departureTime2) {
             bearing2 = calculateBearing(p2.getLocation(), p2.getDestination());
         }
+
 
         // Check the distance between the two planes when they are both in the air
         if (round >= departureTime1 && round >= departureTime2) {
@@ -80,9 +82,9 @@ public class Group1Player extends Player {
     private double adjustBearing(double originalBearing, double newBearing, double maxChange) {
         double change = newBearing - originalBearing;
 
-        if (change > maxChange) {
+        if(change > maxChange) {
             return originalBearing + maxChange;
-        } else if (change < -maxChange) {
+        } else if(change < -maxChange) {
             return originalBearing - maxChange;
         } else {
             return newBearing;
