@@ -34,6 +34,7 @@ public class Group1Player extends Player {
     @Override
     public double[] updatePlanes(ArrayList<Plane> planes, int round, double[] bearings) {
 
+        // double test case
         Plane p1 = planes.get(0);
         Plane p2 = planes.get(1);
 
