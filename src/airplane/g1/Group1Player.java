@@ -1,5 +1,6 @@
 package airplane.g1;
 
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import org.apache.log4j.Logger;
 import airplane.sim.Plane;
@@ -10,6 +11,13 @@ public class Group1Player extends Player {
     private Logger logger = Logger.getLogger(this.getClass());
     private boolean pass = false;
     private double preDist = Double.MAX_VALUE;
+
+    Point2D start1 = null;
+    Point2D start2 = null;
+
+    // potential delay
+    double delay1 = 0;
+    double delay2 = 0;
 
     @Override
     public String getName() {
@@ -32,18 +40,38 @@ public class Group1Player extends Player {
         int departureTime1 = p1.getDepartureTime();
         int departureTime2 = p2.getDepartureTime();
 
+        if (p1.getBearing() == -1) {
+            start1 = p1.getLocation();
+        }
+        if (p2.getBearing() == -1) {
+            start2 = p2.getLocation();
+        }
+
         double bearing1 = 0;
         double bearing2 = 0;
 
+        double[] intersection = intersects(start1.getX(), start1.getY(), p1.getDestination().getX(), p1.getDestination().getY(),
+                start2.getX(), start2.getY(), p2.getDestination().getX(), p2.getDestination().getY());
+
+        // calculate whether planes collide
+        if (intersection[0] != -1) {
+            double distanceToCollision = Math.abs(distance(start1.getX(), start1.getY(), intersection[0], intersection[1]) -
+                    distance(start2.getX(), start2.getY(), intersection[0], intersection[1]));
+            if (distanceToCollision < 10) {
+                delay2 = 10;
+            }
+        }
+
         // Check if the plane is in the air
-        if (round >= departureTime1) {
+        if (round >= departureTime1 + delay1 && bearings[0] != -2) {
             bearing1 = calculateBearing(p1.getLocation(), p1.getDestination());
+            bearings[0] = bearing1;
         }
-        if (round >= departureTime2) {
+        if (round >= departureTime2 + delay2 && bearings[1] != -2) {
             bearing2 = calculateBearing(p2.getLocation(), p2.getDestination());
+            bearings[1] = bearing2;
         }
-
-
+        /*
         // Check the distance between the two planes when they are both in the air
         if (round >= departureTime1 && round >= departureTime2) {
             double distance = distance(p1.getLocation().getX(), p1.getLocation().getY(),
@@ -71,9 +99,7 @@ public class Group1Player extends Player {
         if(bearings[1] != -1){
             bearing2 = adjustBearing(bearings[1], bearing2, 10);
         }
-
-        bearings[0] = bearing1;
-        bearings[1] = bearing2;
+        */
 
         return bearings;
     }
@@ -81,9 +107,9 @@ public class Group1Player extends Player {
     private double adjustBearing(double originalBearing, double newBearing, double maxChange) {
         double change = newBearing - originalBearing;
 
-        if(change > maxChange) {
+        if (change > maxChange) {
             return originalBearing + maxChange;
-        } else if(change < -maxChange) {
+        } else if (change < -maxChange) {
             return originalBearing - maxChange;
         } else {
             return newBearing;
