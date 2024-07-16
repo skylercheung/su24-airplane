@@ -1,6 +1,7 @@
 package airplane.g1;
 
 import java.awt.geom.Point2D;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import org.apache.log4j.Logger;
 import airplane.sim.Plane;
@@ -9,15 +10,25 @@ import airplane.sim.Player;
 public class Group1Player extends Player {
 
     private Logger logger = Logger.getLogger(this.getClass());
-    private boolean pass = false;
-    private double preDist = Double.MAX_VALUE;
+//    // private boolean pass = false;
+//    private double preDist = Double.MAX_VALUE;
 
-    Point2D start1 = null;
-    Point2D start2 = null;
+    private final int numPlanes = 100;
 
-    // potential delay
-    double delay1 = 0;
-    double delay2 = 0;
+    Point2D[] start = new Point2D[numPlanes];
+    double[] delay = new double[numPlanes];
+    double[] departure = new double[numPlanes];
+    double[][] distance = new double[numPlanes][numPlanes];
+    boolean[][] pass = new boolean[numPlanes][numPlanes];
+    boolean[] departed = new boolean[numPlanes];
+
+    // Delay parameters
+    private final int delayTime = 15;
+    private final int delayTimeThreshold = 15;
+
+    // Plane avoidance parameters
+    private final int distanceThreshold = 15;
+    private final int destinationThreshold = 25;
 
     @Override
     public String getName() {
@@ -27,93 +38,113 @@ public class Group1Player extends Player {
     @Override
     public void startNewGame(ArrayList<Plane> planes) {
         logger.info("Starting new game!");
-        pass = false;
-        preDist = Double.MAX_VALUE;
+
+        for (int i = 0; i < distance.length; i++) {
+            for (int j = 0; j < distance[i].length; j++) {
+                distance[i][j] = Double.MAX_VALUE;
+                pass[i][j] = false;
+                departed[i] = false;
+            }
+        }
+
+        // calculating potential delays between all pairs of planes
+        for (int i = 0; i < planes.size(); i++) {
+            Plane p = planes.get(i);
+            departure[i] = p.getDepartureTime();
+            if (p.getBearing() == -1) {
+                start[i] = p.getLocation();
+            }
+        }
+
+        for (int i = 0; i < planes.size(); i++) {
+            for (int j = i + 1; j < planes.size(); j++) {
+                Plane p1 = planes.get(i);
+                Plane p2 = planes.get(j);
+
+                double[] intersection = intersects(start[i].getX(), start[i].getY(), p1.getDestination().getX(), p1.getDestination().getY(),
+                        start[j].getX(), start[j].getY(), p2.getDestination().getX(), p2.getDestination().getY());
+
+                if (intersection.length != 0) {
+                    double timeToCollision = Math.abs(distance(start[i].getX(), start[i].getY(), intersection[0], intersection[1]) -
+                            distance(start[j].getX(), start[j].getY(), intersection[0], intersection[1])) + Math.abs(departure[i] - departure[j]);
+                    if (timeToCollision < delayTimeThreshold) {
+                        delay[j] += delayTime;
+                        distance[i][j] = -1;
+                    }
+                }
+            }
+        }
     }
 
     @Override
     public double[] updatePlanes(ArrayList<Plane> planes, int round, double[] bearings) {
 
-        // double test case
-        Plane p1 = planes.get(0);
-        Plane p2 = planes.get(1);
-
-        int departureTime1 = p1.getDepartureTime();
-        int departureTime2 = p2.getDepartureTime();
-
-        if (p1.getBearing() == -1) {
-            start1 = p1.getLocation();
-        }
-        if (p2.getBearing() == -1) {
-            start2 = p2.getLocation();
-        }
-
-        double bearing1 = 0;
-        double bearing2 = 0;
-
-        double[] intersection = intersects(start1.getX(), start1.getY(), p1.getDestination().getX(), p1.getDestination().getY(),
-                start2.getX(), start2.getY(), p2.getDestination().getX(), p2.getDestination().getY());
-
-        // calculate whether planes collide
-        if (intersection[0] != -1) {
-            double distanceToCollision = Math.abs(distance(start1.getX(), start1.getY(), intersection[0], intersection[1]) -
-                    distance(start2.getX(), start2.getY(), intersection[0], intersection[1]));
-            if (distanceToCollision < 10) {
-                delay2 = 10;
+        // takes into account potential delays
+        for (int i = 0; i < planes.size(); i++) {
+            Plane p = planes.get(i);
+            if (round >= departure[i] + delay[i] && bearings[i] != -2 && !departed[i]) {
+                bearings[i] = calculateBearing(p.getLocation(), p.getDestination());
+                departed[i] = true; // prevent sharp changes in bearing
             }
         }
 
-        // Check if the plane is in the air
-        if (round >= departureTime1 + delay1 && bearings[0] != -2) {
-            bearing1 = calculateBearing(p1.getLocation(), p1.getDestination());
-            bearings[0] = bearing1;
-        }
-        if (round >= departureTime2 + delay2 && bearings[1] != -2) {
-            bearing2 = calculateBearing(p2.getLocation(), p2.getDestination());
-            bearings[1] = bearing2;
-        }
-        /*
-        // Check the distance between the two planes when they are both in the air
-        if (round >= departureTime1 && round >= departureTime2) {
-            double distance = distance(p1.getLocation().getX(), p1.getLocation().getY(),
-                    p2.getLocation().getX(), p2.getLocation().getY());
+        double[] change = new double[planes.size()];
 
-            // If the distance is increasing, then pass the other plane
-            if (distance > preDist) {
-                pass = true;
+        // check distances between all pairs of planes
+        for (int i = 0; i < planes.size(); i++) {
+            for (int j = i + 1; j < planes.size(); j++) {
+                Plane p1 = planes.get(i);
+                Plane p2 = planes.get(j);
+
+                if (round >= departure[i] && round >= departure[j] && (p1.getBearing() >= 0 && p2.getBearing() >= 0)) {
+                    double dist = distance(p1.getLocation().getX(), p1.getLocation().getY(),
+                            p2.getLocation().getX(), p2.getLocation().getY());
+                    double distToDest = distance(p1.getLocation().getX(), p1.getLocation().getY(),
+                            p1.getDestination().getX(), p1.getDestination().getY());
+
+                    if (dist > distance[i][j]) {
+                        pass[i][j] = true;
+                    }
+
+                    if (pass[i][j]) {
+                        change[i] = calculateBearing(p1.getLocation(), p1.getDestination()) - bearings[i];
+                        change[j] = calculateBearing(p2.getLocation(), p2.getDestination()) - bearings[j];
+                    }
+
+                    if (distance[i][j] != -1) {
+                        if ((dist <= distanceThreshold && !pass[i][j] && distToDest >= destinationThreshold) || dist <= 5) {
+                            change[i] = (change[i] + 10) % 360;
+                            change[j] = (change[j] + 10) % 360;
+                        }
+                    }
+
+                    distance[i][j] = dist;
+                }
             }
+        }
 
-            // if they are not passing each other and distance is less than 40, keep increasing the bearing
-            // and if they have passed each other and are 5 units apart, do not change the bearing
-            if ((distance <= 50 && !pass) || distance <= 5) {
-                bearing1 = (bearing1 + 10) % 360;
-                bearing2 = (bearing2 + 10) % 360;
+        for (int i = 0; i < planes.size(); i++) {
+            if (bearings[i] != -1 && bearings[i] != -2) {
+                bearings[i] = adjustBearing(bearings[i], bearings[i] + change[i], 10);
             }
-
-            preDist = distance;
         }
-
-        // Adjust the bearing
-        if(bearings[0] != -1){
-            bearing1 = adjustBearing(bearings[0], bearing1, 10);
-        }
-        if(bearings[1] != -1){
-            bearing2 = adjustBearing(bearings[1], bearing2, 10);
-        }
-        */
-
         return bearings;
+    }
+
+    // in case of rounding errors
+    private double round(double input) {
+        return Math.round(input * 100.0) / 100.0;
     }
 
     private double adjustBearing(double originalBearing, double newBearing, double maxChange) {
         double change = newBearing - originalBearing;
 
-        if (change > maxChange) {
-            return originalBearing + maxChange;
-        } else if (change < -maxChange) {
-            return originalBearing - maxChange;
+        if (change >= maxChange) {
+            return round(originalBearing + maxChange - 0.1) % 360;
+        } else if (change <= -maxChange) {
+            return round(originalBearing - maxChange + 0.1) % 360;
         } else {
-            return newBearing;
+            return round(newBearing);
         }
     }
 
@@ -127,6 +158,14 @@ public class Group1Player extends Player {
     // returns point of intersection if so; otherwise, empty double[]
     private double[] intersects(double ax, double ay, double bx, double by,
                               double cx, double cy, double dx, double dy) {
+
+        if ((ax == cx && ay == cy) || (ax == dx && ay == dy)) {
+            return new double[]{ax, ay};
+        }
+        if ((bx == cx && by == cy) || (bx == dx && by == dy)) {
+            return new double[]{bx, by};
+        }
+
         double a1 = by - ay;
         double b1 = ax - bx;
         double c1 = a1 * ax + b1 * ay;
