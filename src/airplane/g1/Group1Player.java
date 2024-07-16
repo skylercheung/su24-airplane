@@ -24,11 +24,11 @@ public class Group1Player extends Player {
 
     // Delay parameters
     private final int delayTime = 15;
-    private final int delayTimeThreshold = 15;
+    private final int delayTimeThreshold = 25;
 
     // Plane avoidance parameters
-    private final int distanceThreshold = 15;
-    private final int destinationThreshold = 25;
+    private final int distanceThreshold = 12;
+    private final int destinationThreshold = 5;
 
     @Override
     public String getName() {
@@ -102,7 +102,7 @@ public class Group1Player extends Player {
                     double distToDest = distance(p1.getLocation().getX(), p1.getLocation().getY(),
                             p1.getDestination().getX(), p1.getDestination().getY());
 
-                    if (dist > distance[i][j]) {
+                    if (dist > distance[i][j] && distance[i][j] != -1) {
                         pass[i][j] = true;
                     }
 
