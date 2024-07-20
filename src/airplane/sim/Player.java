@@ -46,8 +46,16 @@ public abstract class Player {
 	 * This is used when you're running your own simulation
 	 */
 	protected double[] simulateUpdate(ArrayList<Plane> planes, int round, double[] bearings) {
-		// not implemented
-		return null;
+		// straight line path
+
+		for (int i = 0; i < planes.size(); i++) {
+			Plane p = planes.get(i);
+			if (round >= p.getDepartureTime()) {
+				bearings[i] = calculateBearing(p.getLocation(), p.getDestination());
+			}
+		}
+
+		return bearings;
 	}
 	
 	/*
@@ -102,7 +110,7 @@ public abstract class Player {
     		// make sure no planes took off too early
 			for (int i = 0; i < simPlanes.size(); i++) {
 				if (simBearings[i] > -1) {
-					if (simPlanes.get(i).getDepartureTime() > round || simPlanes.get(i).dependenciesHaveLanded(simBearings) == false)
+					if (simPlanes.get(i).getDepartureTime() > round || !simPlanes.get(i).dependenciesHaveLanded(simBearings))
 						return new SimulationResult(SimulationResult.TOO_EARLY, round, simPlanes);
 				}
 			}
@@ -120,7 +128,7 @@ public abstract class Player {
 	    				}
     				}
     				// if an error occurs
-    				else if (p.isLegalMove(simBearings[i]) == false) 
+    				else if (!p.isLegalMove(simBearings[i]))
     					return new SimulationResult(SimulationResult.ILLEGAL_BEARING, round, simPlanes);
     				else return new SimulationResult(SimulationResult.OUT_OF_BOUNDS, round, simPlanes);
     			}
